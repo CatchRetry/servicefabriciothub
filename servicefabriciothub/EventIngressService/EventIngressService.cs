@@ -4,9 +4,12 @@ using System.Fabric;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.ServiceBus;
+using TransportType = Microsoft.Azure.ServiceBus.TransportType;
+
 
 namespace EventIngressService
 {
@@ -46,26 +49,13 @@ namespace EventIngressService
                 string eventHubCompatibleName = GetEventHubCompatibleName();
                 ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Name = {eventHubCompatibleName}");
 
-                var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
+                // Get an EventHub client connected to the IOT Hub
+                var eventHubClient = GetAmqpEventHubClient(eventHubCompatibleEndpoint, eventHubCompatibleName);
 
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    using (var tx = this.StateManager.CreateTransaction())
-                    {
-                        var result = await myDictionary.TryGetValueAsync(tx, "Counter");
-
-                        ServiceEventSource.Current.ServiceMessage(this.Context, "Current Counter Value: {0}",
-                            result.HasValue ? result.Value.ToString() : "Value does not exist.");
-
-                        await myDictionary.AddOrUpdateAsync(tx, "Counter", 0, (key, value) => ++value);
-
-                        // If an exception is thrown before calling CommitAsync, the transaction aborts, all changes are 
-                        // discarded, and nothing is saved to the secondary replicas.
-                        await tx.CommitAsync();
-                    }
-
+                    
                     await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
                 }
             }
@@ -106,5 +96,29 @@ namespace EventIngressService
                 .Parameters["EventHubCompatibleName"]
                 .Value;
         }
+
+        /// <summary>
+        /// Creates an EventHubClient through AMQP protocol
+        /// </summary>
+        /// <param name="eventHubCompatibleEndpoint"></param>
+        /// <param name="eventHubCompatibleName"></param>
+        private EventHubClient GetAmqpEventHubClient(string eventHubCompatibleEndpoint, string eventHubCompatibleName)
+        {
+            // EventHubs doesn't support NetMessaging, so ensure the transport type is AMQP.
+            ServiceBusConnectionStringBuilder connectionStringBuilder =
+                new ServiceBusConnectionStringBuilder(eventHubCompatibleEndpoint)
+                {
+                    TransportType = TransportType.Amqp,
+                    EntityPath = eventHubCompatibleName
+                };
+
+            ServiceEventSource.Current.ServiceMessage(
+                this.Context,
+                "RoutingService connecting to IoT Hub throught Amqp at {0}",
+                new object[] { connectionStringBuilder.GetEntityConnectionString() });
+
+            return EventHubClient.CreateFromConnectionString(connectionStringBuilder.GetEntityConnectionString());
+        }
+
     }
 }

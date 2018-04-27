@@ -12,6 +12,10 @@
     <PackageReference Include="Microsoft.ServiceFabric" Version="6.1.480" />
     <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.0.480" />
     <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.0.480" />
+    <PackageReference Include="Microsoft.Azure.EventHubs" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Azure.EventHubs.Processor" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Azure.ServiceBus" Version="2.0.0" />
+
   </ItemGroup>
 
 </Project>

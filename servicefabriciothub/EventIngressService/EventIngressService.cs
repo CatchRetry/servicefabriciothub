@@ -38,8 +38,10 @@ namespace EventIngressService
         /// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
         protected override async Task RunAsync(CancellationToken cancellationToken)
         {
-            // TODO: Replace the following sample code with your own logic 
-            //       or remove this RunAsync override if it's not needed in your service.
+            string eventHubCompatibleEndpoint = GetEventHubCompatibleEndpoint();
+            ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Endpoint = {eventHubCompatibleEndpoint}");
+            string eventHubCompatibleName = GetEventHubCompatibleName();
+            ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Name = {eventHubCompatibleName}");
 
             var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
 
@@ -63,6 +65,37 @@ namespace EventIngressService
 
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
+        }
+
+        /// <summary>
+        /// Get the IoT Hub EventHub-compatible endpoint from the Settings.xml config file
+        /// from a configuration package named "Config"
+        /// </summary>
+        /// <returns></returns>
+        private string GetEventHubCompatibleEndpoint()
+        {
+            return this.Context.CodePackageActivationContext
+                .GetConfigurationPackageObject("Config")
+                .Settings
+                .Sections["IoTHubConfigInformation"]
+                .Parameters["EventHubCompatibleEndpoint"]
+                .Value;
+        }
+
+
+        /// <summary>
+        /// Get the IoT Hub EventHub-compatible name from the Settings.xml config file
+        /// from a configuration package named "Config"
+        /// </summary>
+        /// <returns></returns>
+        private string GetEventHubCompatibleName()
+        {
+            return this.Context.CodePackageActivationContext
+                .GetConfigurationPackageObject("Config")
+                .Settings
+                .Sections["IoTHubConfigInformation"]
+                .Parameters["EventHubCompatibleName"]
+                .Value;
         }
     }
 }

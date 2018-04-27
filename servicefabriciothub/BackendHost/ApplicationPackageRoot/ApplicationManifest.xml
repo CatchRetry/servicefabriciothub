@@ -1,20 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ApplicationManifest ApplicationTypeName="BackendHostType"
-                     ApplicationTypeVersion="1.0.0"
-                     xmlns="http://schemas.microsoft.com/2011/01/fabric"
-                     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="BackendHostType" ApplicationTypeVersion="1.0.0" xmlns="http://schemas.microsoft.com/2011/01/fabric">
   <Parameters>
     <Parameter Name="EventIngressService_MinReplicaSetSize" DefaultValue="3" />
     <Parameter Name="EventIngressService_PartitionCount" DefaultValue="1" />
     <Parameter Name="EventIngressService_TargetReplicaSetSize" DefaultValue="3" />
+    <!-- EventIngressService Settings.xml Parameters -->
+    <Parameter Name="EventHubCompatibleEndpoint" DefaultValue="[EventHubCompatibleEndpoint]" />
+    <Parameter Name="EventHubCompatibleName" DefaultValue="[EventHubCompatibleEndpoint]" />
   </Parameters>
   <!-- Import the ServiceManifest from the ServicePackage. The ServiceManifestName and ServiceManifestVersion 
        should match the Name and Version attributes of the ServiceManifest element defined in the 
        ServiceManifest.xml file. -->
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="EventIngressServicePkg" ServiceManifestVersion="1.0.0" />
-    <ConfigOverrides />
+    <ConfigOverrides>
+      <ConfigOverride Name="Config">
+        <Settings>
+          <Section Name="IoTHubConfigInformation">
+            <Parameter Name="EventHubCompatibleEndpoint" Value="[EventHubCompatibleEndpoint]" />
+            <Parameter Name="EventHubCompatibleName" Value="[EventHubCompatibleName]" />
+          </Section>
+        </Settings>
+      </ConfigOverride>
+    </ConfigOverrides>
   </ServiceManifestImport>
   <DefaultServices>
     <!-- The section below creates instances of service types, when an instance of this 

@@ -7,10 +7,8 @@
   <!-- This is used for securing StateManager's replication traffic. -->
   <Section Name="ReplicatorSecurityConfig" />
 
-  <!-- Add your custom configuration sections and parameters here. -->
-  <!--
-  <Section Name="MyConfigSection">
-    <Parameter Name="MyParameter" Value="Value1" />
+  <Section Name="IoTHubConfigInformation">
+    <Parameter Name="EventHubCompatibleEndpoint" Value="" MustOverride="true" />
+    <Parameter Name="EventHubCompatibleName" Value="" MustOverride="true" />
   </Section>
-  -->
 </Settings>

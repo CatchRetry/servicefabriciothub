@@ -38,33 +38,42 @@ namespace EventIngressService
         /// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
         protected override async Task RunAsync(CancellationToken cancellationToken)
         {
-            string eventHubCompatibleEndpoint = GetEventHubCompatibleEndpoint();
-            ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Endpoint = {eventHubCompatibleEndpoint}");
-            string eventHubCompatibleName = GetEventHubCompatibleName();
-            ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Name = {eventHubCompatibleName}");
-
-            var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
-
-            while (true)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
 
-                using (var tx = this.StateManager.CreateTransaction())
+                string eventHubCompatibleEndpoint = GetEventHubCompatibleEndpoint();
+                ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Endpoint = {eventHubCompatibleEndpoint}");
+                string eventHubCompatibleName = GetEventHubCompatibleName();
+                ServiceEventSource.Current.ServiceMessage(this.Context, $"Event Hub-compatible Name = {eventHubCompatibleName}");
+
+                var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
+
+                while (true)
                 {
-                    var result = await myDictionary.TryGetValueAsync(tx, "Counter");
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                    ServiceEventSource.Current.ServiceMessage(this.Context, "Current Counter Value: {0}",
-                        result.HasValue ? result.Value.ToString() : "Value does not exist.");
+                    using (var tx = this.StateManager.CreateTransaction())
+                    {
+                        var result = await myDictionary.TryGetValueAsync(tx, "Counter");
 
-                    await myDictionary.AddOrUpdateAsync(tx, "Counter", 0, (key, value) => ++value);
+                        ServiceEventSource.Current.ServiceMessage(this.Context, "Current Counter Value: {0}",
+                            result.HasValue ? result.Value.ToString() : "Value does not exist.");
 
-                    // If an exception is thrown before calling CommitAsync, the transaction aborts, all changes are 
-                    // discarded, and nothing is saved to the secondary replicas.
-                    await tx.CommitAsync();
+                        await myDictionary.AddOrUpdateAsync(tx, "Counter", 0, (key, value) => ++value);
+
+                        // If an exception is thrown before calling CommitAsync, the transaction aborts, all changes are 
+                        // discarded, and nothing is saved to the secondary replicas.
+                        await tx.CommitAsync();
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
                 }
-
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
+            catch (Exception e)
+            {
+                ServiceEventSource.Current.ServiceMessage(this.Context, "{0}", e.Message);
+            }
+
         }
 
         /// <summary>

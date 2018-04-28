@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Fabric;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
@@ -21,6 +22,8 @@ namespace EventIngressService
     internal sealed class EventIngressService : StatefulService
     {
         private const string OffsetDictionaryName = "OffsetDictionary";
+        private const int MaxMessagesCount = 10;
+        private const int MessagesReceivingTimeoutSeconds = 20;
 
         public EventIngressService(StatefulServiceContext context)
             : base(context)
@@ -64,18 +67,13 @@ namespace EventIngressService
                 // Get receivers connected to the partitions of the IOT Hub
                 var eventHubReceivers = await GetEventHubReceiversAsync(eventHubClient, offsetDictionary);
 
-                while (true)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-                }
+                var tasks = eventHubReceivers.Select(partition => ReceiveMessagesFromDeviceAsync(partition, offsetDictionary, cancellationToken));
+                await Task.WhenAny(tasks.ToArray());
             }
             catch (Exception e)
             {
                 ServiceEventSource.Current.ServiceMessage(this.Context, "{0}", e.Message);
             }
-
         }
 
         /// <summary>
@@ -184,6 +182,55 @@ namespace EventIngressService
                 }
             }
             return eventHubReceivers;
+        }
+
+        /// <summary>
+        /// Receive Device-to-Cloud messages from IOT Hub
+        /// </summary>
+        /// <param name="eventHubReceiver"></param>
+        /// <param name="offsetDictionary"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        private async Task ReceiveMessagesFromDeviceAsync(
+            KeyValuePair<string, PartitionReceiver> eventHubReceiver,
+            IReliableDictionary<string, string> offsetDictionary,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var messages = await eventHubReceiver.Value.ReceiveAsync(MaxMessagesCount, TimeSpan.FromSeconds(MessagesReceivingTimeoutSeconds));
+                    if (messages == null)
+                    {
+                        ServiceEventSource.Current.Message(
+                            $"(RoutingService received no message from Partition {eventHubReceiver.Key}"
+                        );
+                        continue;
+                    }
+
+                    foreach (var eventData in messages)
+                    {
+
+                        ServiceEventSource.Current.Message(
+                            $"(RoutingService received a message from Partition {eventHubReceiver.Key}: {Encoding.UTF8.GetString(eventData.Body.Array)})"
+                        );
+
+                        using (ITransaction tx = this.StateManager.CreateTransaction())
+                        {
+                            await offsetDictionary.SetAsync(tx, eventHubReceiver.Key,
+                                eventData.SystemProperties.Offset);
+                            await tx.CommitAsync();
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.Context, "{0}", e.Message);
+                }
+            }
         }
     }
 }

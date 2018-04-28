@@ -6,7 +6,7 @@
     <Parameter Name="EventIngressService_TargetReplicaSetSize" DefaultValue="3" />
     <!-- EventIngressService Settings.xml Parameters -->
     <Parameter Name="EventHubCompatibleEndpoint" DefaultValue="[EventHubCompatibleEndpoint]" />
-    <Parameter Name="EventHubCompatibleName" DefaultValue="[EventHubCompatibleEndpoint]" />
+    <Parameter Name="EventHubCompatibleName" DefaultValue="[EventHubCompatibleName]" />
   </Parameters>
   <!-- Import the ServiceManifest from the ServicePackage. The ServiceManifestName and ServiceManifestVersion 
        should match the Name and Version attributes of the ServiceManifest element defined in the 
